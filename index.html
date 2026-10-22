@@ -50,6 +50,34 @@
   .close { position: absolute; top: 14px; right: 14px; border: 0; background: none; font-size: 1.6rem; color: var(--muted); cursor: pointer; }
   .mark { width: 100%; padding: 10px; border: 2px solid var(--done); background: none; color: var(--done); border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; }
   .mark.on { background: var(--done); color: #fff; }
+  .meta { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin: -4px 0 16px; }
+  .chip { background: var(--surface); border: 1px solid var(--line); border-radius: 99px; padding: 2px 10px; font-size: .8rem; color: var(--muted); }
+  .chip.ok { color: var(--done); border-color: var(--done); }
+  .meta button { font: inherit; font-size: .85rem; font-weight: 600; padding: 4px 12px; border-radius: 99px; cursor: pointer;
+    border: 2px solid var(--accent); background: var(--surface); color: var(--accent); }
+  .meta button:hover:not(:disabled) { background: var(--accent); color: #fff; }
+  .meta .completebtn { border-color: var(--done); color: var(--done); }
+  .meta .completebtn:hover:not(:disabled) { background: var(--done); color: #fff; }
+  .meta button:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); color: var(--muted); }
+  section.full h2 { background: var(--done); }
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .5s, transform .5s; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  dialog { border: 0; border-radius: 14px; padding: 24px; width: min(480px, 92vw); background: var(--surface); color: var(--text); box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+  dialog::backdrop { background: rgba(10,12,25,.6); }
+  dialog small { color: var(--muted); }
+  dialog h3 { margin: 6px 28px 16px 0; font-size: 1.15rem; }
+  .opts { display: grid; gap: 8px; }
+  .opt-btn, .qbtn { font: inherit; text-align: left; padding: 10px 12px; border: 2px solid var(--line); border-radius: 8px; background: none; color: var(--text); cursor: pointer; }
+  .opt-btn:hover:not(:disabled) { border-color: var(--accent); }
+  .opt-btn.right { border-color: var(--done); background: color-mix(in srgb, var(--done) 18%, transparent); }
+  .opt-btn.wrong { border-color: #dc2626; background: color-mix(in srgb, #dc2626 15%, transparent); }
+  .fb { margin: 14px 0 0; color: var(--muted); min-height: 1.5em; }
+  .qbtn { margin-top: 14px; text-align: center; font-weight: 600; border-color: var(--accent); color: var(--accent); margin-right: 8px; }
+  .qclose { position: absolute; top: 12px; right: 14px; border: 0; background: none; font-size: 1.6rem; color: var(--muted); cursor: pointer; }
+  .score { font-size: 2.2rem; font-weight: 700; margin: 4px 0; }
+  .pop { animation: pop .5s; }
+  @keyframes pop { 0% { transform: scale(.7); } 60% { transform: scale(1.15); } 100% { transform: none; } }
   footer { text-align: center; color: var(--muted); padding-bottom: 30px; font-size: .85rem; }
   footer a { color: var(--accent); }
   @media (max-width: 520px) { main::before { left: 20px; } .nodes { align-items: stretch; } .node { width: 100%; } section h2 { margin-left: 0; } }
@@ -63,6 +91,7 @@
 </header>
 <main id="map"></main>
 <aside id="panel" aria-live="polite"></aside>
+<dialog id="quiz"></dialog>
 <footer>Want a second opinion? See <a href="https://roadmap.sh/backend" target="_blank" rel="noopener">roadmap.sh/backend</a>.</footer>
 
 <script>
@@ -163,16 +192,44 @@ const DATA = [
  ]},
 ];
 
-const KEY = "backend-roadmap-done";
-let done = new Set();
+// Quiz per section (same order as DATA). First option is the correct one; options are shuffled when shown.
+const Q = (q, o, e) => ({ q, o, e });
+const QUIZ = [
+ [ Q("Which HTTP status code means the resource was not found?", ["404", "200", "301", "500"], "404 Not Found. 5xx codes are server errors, 3xx are redirects."),
+   Q("Which HTTP method is defined as 'safe' (should not change server state)?", ["GET", "POST", "PUT", "DELETE"], "GET is safe and idempotent; PUT and DELETE are idempotent but not safe."),
+   Q("Which git command creates a new branch and switches to it?", ["git checkout -b feature", "git branch -d feature", "git stash feature", "git merge feature"], "`git checkout -b` (or `git switch -c`) creates and switches in one step.") ],
+ [ Q("What does the 'I' in ACID stand for?", ["Isolation", "Indexing", "Idempotency", "Integration"], "Isolation: concurrent transactions don't see each other's partial work."),
+   Q("What is the main purpose of a database index?", ["Speed up lookups on a column", "Encrypt the data", "Back up the table", "Enforce foreign keys"], "Indexes (e.g. B-trees) trade write cost and space for faster reads."),
+   Q("Which SQL clause combines rows from two tables on a related column?", ["JOIN", "GROUP BY", "LIMIT", "DISTINCT"], "JOIN matches rows between tables using a condition like ON a.id = b.a_id.") ],
+ [ Q("In REST, which HTTP method is conventionally used to create a new resource?", ["POST", "GET", "HEAD", "OPTIONS"], "POST creates; PUT replaces; PATCH partially updates."),
+   Q("Which status code is the best fit after successfully creating a resource?", ["201 Created", "204 No Content", "302 Found", "418 I'm a teapot"], "201 Created, ideally with a Location header."),
+   Q("What is the 'N+1 problem' in GraphQL/ORMs?", ["One query for a list plus one extra query per item", "N servers needed for 1 request", "N+1 tables in a join", "A pagination bug on page N+1"], "Batching (e.g. DataLoader) or eager loading avoids the extra per-item queries.") ],
+ [ Q("How should user passwords be stored?", ["Salted hash with bcrypt/argon2", "Encrypted with AES", "Plain text", "Base64-encoded"], "Use a slow, salted password hash so leaked data can't be reversed cheaply."),
+   Q("Which attack inserts malicious SQL through user input?", ["SQL injection", "CSRF", "Clickjacking", "DNS spoofing"], "Prevent it with parameterized queries / prepared statements."),
+   Q("An HTTP 401 response generally means…", ["The client is not authenticated", "The user lacks permission", "The server crashed", "The resource moved"], "401 = not (properly) authenticated; 403 = authenticated but forbidden.") ],
+ [ Q("What is the main benefit of a message queue?", ["Decouples producers and consumers, enabling async work", "Makes the database faster", "Removes the need for tests", "Encrypts all traffic"], "Queues smooth traffic spikes and let services fail or scale independently."),
+   Q("What does the CAP theorem say about a network partition?", ["You must choose between consistency and availability", "You can have all three guarantees", "Partitions can be ignored", "It only applies to SQL"], "Under a partition a distributed system can keep either consistency or availability."),
+   Q("How does the cache-aside pattern work?", ["Check cache; on a miss load from DB and populate cache", "Write only to cache", "Cache sits inside the DB engine", "Always bypass the cache on reads"], "The application owns cache population and invalidation.") ],
+ [ Q("In the test pyramid, which tests should be the most numerous?", ["Unit tests", "End-to-end tests", "Manual tests", "Load tests"], "Unit tests are fast and cheap, so you want many of them."),
+   Q("What is a mock used for?", ["Replacing a real dependency with a controlled fake", "Generating production data", "Measuring code coverage", "Deploying the app"], "Mocks/stubs isolate the unit under test from slow or nondeterministic dependencies."),
+   Q("What does an integration test verify?", ["That several components work together (e.g. code + real DB)", "A single pure function", "UI colors", "Server hardware"], "Tools like Testcontainers make it easy to use a real database.") ],
+ [ Q("What is the difference between a Docker image and a container?", ["An image is a template; a container is a running instance", "They are identical", "A container is a template; an image is running", "Images only exist on Windows"], "Many containers can be started from one image."),
+   Q("What does CI stand for?", ["Continuous Integration", "Container Installation", "Code Inspection", "Cloud Infrastructure"], "CI automatically builds and tests every change."),
+   Q("Which are the three classic pillars of observability?", ["Logs, metrics, traces", "CPU, RAM, disk", "Build, test, deploy", "Unit, integration, e2e"], "Together they let you answer 'what is the system doing and why?'") ],
+];
+const PASS = 2;
+
+const KEY = "backend-roadmap-done", KEYQ = "backend-roadmap-quiz";
+let done = new Set(), passed = new Set();
 try { done = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch (e) {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...done])); } catch (e) {} };
+try { passed = new Set(JSON.parse(localStorage.getItem(KEYQ) || "[]")); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...done])); localStorage.setItem(KEYQ, JSON.stringify([...passed])); } catch (e) {} };
 const all = DATA.flatMap(s => s.nodes);
 const $ = id => document.getElementById(id);
 const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-$("map").innerHTML = DATA.map(s => `
-  <section><h2>${esc(s.title)}</h2><div class="nodes">
+$("map").innerHTML = DATA.map((s, i) => `
+  <section class="reveal" data-s="${i}"><h2>${esc(s.title)}</h2><div class="meta"></div><div class="nodes">
   ${s.nodes.map(n => `<button class="node${n.opt ? " opt" : ""}" data-id="${n.id}">
      <span>${esc(n.name)}${n.opt ? "<small>optional</small>" : ""}</span><span class="tick">✓</span></button>`).join("")}
   </div></section>`).join("");
@@ -181,8 +238,63 @@ function refresh() {
   document.querySelectorAll(".node").forEach(b => b.classList.toggle("done", done.has(b.dataset.id)));
   const p = Math.round(done.size / all.length * 100);
   $("fill").style.width = p + "%";
-  $("count").textContent = `${done.size} / ${all.length} completed (${p}%)`;
+  $("count").textContent = `${done.size} / ${all.length} topics · ${passed.size} / ${DATA.length} quizzes passed`;
+  DATA.forEach((s, i) => {
+    const sec = document.querySelector(`section[data-s="${i}"]`);
+    const n = s.nodes.filter(x => done.has(x.id)).length, ok = passed.has(i), full = ok && n === s.nodes.length;
+    sec.classList.toggle("full", full);
+    sec.querySelector(".meta").innerHTML = `
+      <span class="chip">${n}/${s.nodes.length} topics</span>
+      <span class="chip ${ok ? "ok" : ""}">${ok ? "✓ Quiz passed" : "Quiz pending"}</span>
+      <button class="quizbtn" data-s="${i}">${ok ? "Retake quiz" : "📝 Take quiz"}</button>
+      <button class="completebtn" data-s="${i}" ${ok ? "" : "disabled"} title="${ok ? "" : "Pass the quiz first"}">${full ? "✓ Section completed" : "Mark section completed"}</button>`;
+  });
 }
+
+// ---- quiz ----
+const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let qz = null;
+function startQuiz(s) {
+  qz = { s, i: 0, score: 0, answered: false, qs: QUIZ[s].map(q => ({ ...q, c: q.o[0], o: shuffle(q.o) })) };
+  $("quiz").showModal(); drawQuiz();
+}
+function drawQuiz() {
+  const d = $("quiz"), q = qz.qs[qz.i], total = qz.qs.length;
+  if (!q) {
+    const ok = qz.score >= PASS;
+    if (ok) { passed.add(qz.s); save(); refresh(); }
+    d.innerHTML = `<button class="qclose" aria-label="Close">×</button><small>${esc(DATA[qz.s].title)}</small>
+      <div class="score ${ok ? "pop" : ""}">${qz.score} / ${total}</div>
+      <p>${ok ? "🎉 Quiz passed! You can now mark this section as completed." : `You need at least ${PASS} correct answers. Review the links in the topics and try again.`}</p>
+      ${ok ? "" : `<button class="qbtn retry">Try again</button>`}<button class="qbtn qclose2">Close</button>`;
+    return;
+  }
+  qz.answered = false;
+  d.innerHTML = `<button class="qclose" aria-label="Close">×</button>
+    <small>${esc(DATA[qz.s].title)} · Question ${qz.i + 1} / ${total}</small><h3>${esc(q.q)}</h3>
+    <div class="opts">${q.o.map(o => `<button class="opt-btn" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>
+    <div class="fb"></div>`;
+}
+function answer(btn) {
+  if (qz.answered) return;
+  qz.answered = true;
+  const q = qz.qs[qz.i], right = btn.dataset.v === q.c;
+  if (right) qz.score++;
+  document.querySelectorAll(".opt-btn").forEach(b => {
+    b.disabled = true;
+    if (b.dataset.v === q.c) b.classList.add("right");
+  });
+  if (!right) btn.classList.add("wrong");
+  const fb = document.querySelector(".fb");
+  fb.textContent = (right ? "Correct! " : "Not quite. ") + q.e;
+  fb.insertAdjacentHTML("afterend", `<button class="qbtn next">${qz.i + 1 < qz.qs.length ? "Next →" : "See result"}</button>`);
+}
+
+// reveal sections on scroll
+if ("IntersectionObserver" in window) {
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .1 });
+  document.querySelectorAll(".reveal").forEach(el => io.observe(el));
+} else document.querySelectorAll(".reveal").forEach(el => el.classList.add("in"));
 
 function open(id) {
   const n = all.find(x => x.id === id);
@@ -195,6 +307,19 @@ function open(id) {
 }
 
 document.addEventListener("click", e => {
+  const t = e.target;
+  if (t === $("quiz") || t.closest(".qclose, .qclose2")) return $("quiz").close();
+  if (t.closest(".opt-btn")) return answer(t.closest(".opt-btn"));
+  if (t.closest(".next")) { qz.i++; return drawQuiz(); }
+  if (t.closest(".retry")) return startQuiz(qz.s);
+  const qb = t.closest(".quizbtn");
+  if (qb) return startQuiz(+qb.dataset.s);
+  const cb = t.closest(".completebtn");
+  if (cb) {
+    const s = +cb.dataset.s, ids = DATA[s].nodes.map(n => n.id), full = ids.every(id => done.has(id));
+    ids.forEach(id => full ? done.delete(id) : done.add(id));
+    save(); return refresh();
+  }
   const node = e.target.closest(".node");
   if (node) return open(node.dataset.id);
   const mark = e.target.closest(".mark");
