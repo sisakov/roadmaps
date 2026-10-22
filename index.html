@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backend Engineering Roadmap</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --surface: #fff; --text: #1b1f2a; --muted: #5d6578;
+    --line: #c9cfdd; --accent: #4f46e5; --done: #16a34a; --shadow: 0 1px 3px rgba(20,25,50,.12);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1220; --surface: #1a1e30; --text: #e8eaf3; --muted: #9aa2b8;
+      --line: #343a55; --accent: #8b85ff; --done: #4ade80; --shadow: 0 1px 3px rgba(0,0,0,.5); }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+  header { text-align: center; padding: 40px 16px 12px; }
+  h1 { margin: 0 0 6px; font-size: 2rem; }
+  header p { margin: 0; color: var(--muted); }
+  .progress { max-width: 360px; margin: 18px auto 0; }
+  .bar { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--done); transition: width .3s; }
+  .progress small { color: var(--muted); }
+  main { max-width: 760px; margin: 0 auto; padding: 16px 16px 80px; position: relative; }
+  main::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; background: var(--line); transform: translateX(-50%); }
+  section { position: relative; margin: 36px 0; }
+  section h2 { position: relative; z-index: 1; width: max-content; max-width: 100%; margin: 0 auto 18px; padding: 8px 20px;
+    background: var(--accent); color: #fff; border-radius: 99px; font-size: 1rem; letter-spacing: .02em; }
+  .nodes { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  .node { position: relative; z-index: 1; width: min(320px, 92%); padding: 11px 16px; text-align: left; cursor: pointer;
+    background: var(--surface); color: var(--text); border: 2px solid var(--line); border-radius: 10px; font: inherit; box-shadow: var(--shadow);
+    display: flex; align-items: center; gap: 10px; transition: transform .12s, border-color .12s; }
+  .node:hover, .node:focus-visible { border-color: var(--accent); transform: translateY(-2px); outline: none; }
+  .node.done { border-color: var(--done); }
+  .node .tick { margin-left: auto; color: var(--done); font-weight: 700; visibility: hidden; }
+  .node.done .tick { visibility: visible; }
+  .node small { display: block; color: var(--muted); font-size: .8rem; }
+  .node.opt { border-style: dashed; }
+
+  aside { position: fixed; top: 0; right: 0; height: 100%; width: min(420px, 100%); background: var(--surface); box-shadow: -4px 0 24px rgba(0,0,0,.25);
+    transform: translateX(105%); transition: transform .25s; padding: 24px 22px; overflow-y: auto; z-index: 10; }
+  aside.open { transform: none; }
+  aside h3 { margin: 0 40px 8px 0; font-size: 1.3rem; }
+  aside p { color: var(--muted); margin: 0 0 18px; }
+  aside ul { list-style: none; padding: 0; margin: 0 0 20px; display: grid; gap: 8px; }
+  aside li a { display: block; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--accent); text-decoration: none; font-weight: 500; }
+  aside li a:hover { border-color: var(--accent); }
+  aside li a span { display: block; color: var(--muted); font-weight: 400; font-size: .8rem; }
+  .close { position: absolute; top: 14px; right: 14px; border: 0; background: none; font-size: 1.6rem; color: var(--muted); cursor: pointer; }
+  .mark { width: 100%; padding: 10px; border: 2px solid var(--done); background: none; color: var(--done); border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer; }
+  .mark.on { background: var(--done); color: #fff; }
+  footer { text-align: center; color: var(--muted); padding-bottom: 30px; font-size: .85rem; }
+  footer a { color: var(--accent); }
+  @media (max-width: 520px) { main::before { left: 20px; } .nodes { align-items: stretch; } .node { width: 100%; } section h2 { margin-left: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Backend Engineering Roadmap</h1>
+  <p>Click any node for a description and helpful links. Mark nodes as done to track progress.</p>
+  <div class="progress"><div class="bar"><i id="fill"></i></div><small id="count"></small></div>
+</header>
+<main id="map"></main>
+<aside id="panel" aria-live="polite"></aside>
+<footer>Want a second opinion? See <a href="https://roadmap.sh/backend" target="_blank" rel="noopener">roadmap.sh/backend</a>.</footer>
+
+<script>
+const L = (t, u, d = "") => ({ t, u, d });
+const DATA = [
+ { title: "1 · Fundamentals", nodes: [
+  { id: "http", name: "Internet & HTTP", desc: "How the web works: DNS, TCP, TLS, HTTP methods, status codes, headers, caching.", links: [
+    L("MDN: HTTP", "https://developer.mozilla.org/en-US/docs/Web/HTTP", "Reference & guides"),
+    L("High Performance Browser Networking", "https://hpbn.co/", "Free book on networking"),
+    L("How DNS works (comic)", "https://howdns.works/")]},
+  { id: "os", name: "OS, Linux & Terminal", desc: "Processes, threads, file systems, permissions, shell scripting, networking tools.", links: [
+    L("Linux Journey", "https://linuxjourney.com/", "Interactive lessons"),
+    L("The Missing Semester (MIT)", "https://missing.csail.mit.edu/", "Shell, vim, git, debugging")]},
+  { id: "git", name: "Git & GitHub", desc: "Version control, branching, pull requests, code review workflows.", links: [
+    L("Pro Git book", "https://git-scm.com/book/en/v2"),
+    L("Learn Git Branching", "https://learngitbranching.js.org/", "Visual interactive tutorial")]},
+  { id: "lang", name: "Pick a Language", desc: "Learn one language deeply: Node.js/TypeScript, Python, Go, Java/Kotlin, C#, Rust.", links: [
+    L("Node.js Learn", "https://nodejs.org/en/learn"),
+    L("Python Tutorial", "https://docs.python.org/3/tutorial/"),
+    L("A Tour of Go", "https://go.dev/tour/"),
+    L("dev.java Learn", "https://dev.java/learn/")]},
+  { id: "dsa", name: "Data Structures & Algorithms", desc: "Arrays, hash maps, trees, graphs, sorting, complexity analysis.", links: [
+    L("NeetCode Roadmap", "https://neetcode.io/roadmap"),
+    L("VisuAlgo", "https://visualgo.net/", "Algorithm visualizations")]},
+ ]},
+ { title: "2 · Databases", nodes: [
+  { id: "sql", name: "Relational DBs & SQL", desc: "Tables, joins, aggregation, normalization. Start with PostgreSQL.", links: [
+    L("SQLBolt", "https://sqlbolt.com/", "Interactive SQL lessons"),
+    L("PostgreSQL Tutorial", "https://www.postgresql.org/docs/current/tutorial.html"),
+    L("Use The Index, Luke", "https://use-the-index-luke.com/", "SQL indexing & tuning")]},
+  { id: "tx", name: "Transactions & Indexing", desc: "ACID, isolation levels, locks, B-tree indexes, query plans (EXPLAIN).", links: [
+    L("Transaction isolation (PostgreSQL)", "https://www.postgresql.org/docs/current/transaction-iso.html"),
+    L("Using EXPLAIN", "https://www.postgresql.org/docs/current/using-explain.html")]},
+  { id: "nosql", name: "NoSQL (MongoDB)", desc: "Document stores, schema design, when to choose NoSQL over SQL.", links: [
+    L("MongoDB University", "https://learn.mongodb.com/"),
+    L("MongoDB Manual", "https://www.mongodb.com/docs/manual/")]},
+  { id: "redis", name: "Redis & Caching", desc: "In-memory data structures, TTLs, cache-aside, pub/sub.", links: [
+    L("Redis Docs", "https://redis.io/docs/latest/")]},
+  { id: "orm", name: "ORMs & Migrations", desc: "Map code to tables, manage schema changes safely.", opt: true, links: [
+    L("Prisma Docs", "https://www.prisma.io/docs"),
+    L("SQLAlchemy", "https://docs.sqlalchemy.org/")]},
+ ]},
+ { title: "3 · APIs", nodes: [
+  { id: "rest", name: "REST", desc: "Resources, verbs, idempotency, pagination, versioning, error formats.", links: [
+    L("RESTful API tutorial", "https://restfulapi.net/"),
+    L("OpenAPI Specification", "https://swagger.io/specification/", "Document your API")]},
+  { id: "gql", name: "GraphQL", desc: "Schemas, queries, mutations, resolvers, N+1 problem.", opt: true, links: [
+    L("Learn GraphQL", "https://graphql.org/learn/")]},
+  { id: "grpc", name: "gRPC & Protobuf", desc: "Binary RPC for service-to-service calls.", opt: true, links: [
+    L("gRPC Docs", "https://grpc.io/docs/")]},
+  { id: "ws", name: "WebSockets & Realtime", desc: "Bi-directional connections, SSE, long polling.", opt: true, links: [
+    L("MDN: WebSockets API", "https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API")]},
+ ]},
+ { title: "4 · Auth & Security", nodes: [
+  { id: "authn", name: "Sessions, Cookies & JWT", desc: "Authentication strategies and their trade-offs.", links: [
+    L("MDN: HTTP Authentication", "https://developer.mozilla.org/en-US/docs/Web/HTTP/Authentication"),
+    L("Introduction to JWT", "https://jwt.io/introduction")]},
+  { id: "oauth", name: "OAuth 2.0 & OIDC", desc: "Delegated authorization, SSO, social login.", links: [
+    L("OAuth 2.0", "https://oauth.net/2/"),
+    L("OpenID Connect", "https://openid.net/developers/how-connect-works/")]},
+  { id: "owasp", name: "OWASP Top 10", desc: "Injection, broken access control, XSS, CSRF, SSRF, secrets management, password hashing.", links: [
+    L("OWASP Top Ten", "https://owasp.org/www-project-top-ten/"),
+    L("OWASP Cheat Sheets", "https://cheatsheetseries.owasp.org/")]},
+ ]},
+ { title: "5 · Architecture & Scale", nodes: [
+  { id: "patterns", name: "Design Patterns & Clean Code", desc: "SOLID, dependency injection, layered/hexagonal architecture.", links: [
+    L("Refactoring Guru", "https://refactoring.guru/design-patterns")]},
+  { id: "micro", name: "Monolith vs Microservices", desc: "Boundaries, service communication, data ownership, trade-offs.", links: [
+    L("Martin Fowler: Microservices", "https://martinfowler.com/articles/microservices.html"),
+    L("microservices.io patterns", "https://microservices.io/")]},
+  { id: "mq", name: "Message Queues & Streams", desc: "Async processing, RabbitMQ, Kafka, at-least-once delivery, idempotent consumers.", links: [
+    L("RabbitMQ Tutorials", "https://www.rabbitmq.com/tutorials"),
+    L("Kafka Docs", "https://kafka.apache.org/documentation/#gettingStarted")]},
+  { id: "scale", name: "Scaling & System Design", desc: "Load balancing, replication, sharding, CDN, CAP theorem, rate limiting.", links: [
+    L("System Design Primer", "https://github.com/donnemartin/system-design-primer"),
+    L("ByteByteGo", "https://bytebytego.com/")]},
+ ]},
+ { title: "6 · Testing", nodes: [
+  { id: "test", name: "Unit, Integration & E2E Tests", desc: "Test pyramid, mocks vs. real dependencies, contract tests.", links: [
+    L("The Practical Test Pyramid", "https://martinfowler.com/articles/practical-test-pyramid.html"),
+    L("Testcontainers", "https://testcontainers.com/", "Real DBs in integration tests")]},
+ ]},
+ { title: "7 · DevOps & Operations", nodes: [
+  { id: "docker", name: "Docker", desc: "Containers, images, Dockerfile best practices, docker compose.", links: [
+    L("Docker Get Started", "https://docs.docker.com/get-started/")]},
+  { id: "ci", name: "CI/CD", desc: "Automated build, test, and deploy pipelines.", links: [
+    L("GitHub Actions Docs", "https://docs.github.com/en/actions")]},
+  { id: "cloud", name: "Cloud (AWS / GCP / Azure)", desc: "Compute, managed databases, object storage, IAM, networking.", links: [
+    L("AWS Getting Started", "https://aws.amazon.com/getting-started/"),
+    L("Google Cloud Skills Boost", "https://www.cloudskillsboost.google/")]},
+  { id: "k8s", name: "Kubernetes", desc: "Orchestrating containers: pods, deployments, services.", opt: true, links: [
+    L("Kubernetes Basics", "https://kubernetes.io/docs/tutorials/kubernetes-basics/")]},
+  { id: "iac", name: "Infrastructure as Code", desc: "Provision infrastructure declaratively.", opt: true, links: [
+    L("Terraform Tutorials", "https://developer.hashicorp.com/terraform/tutorials")]},
+  { id: "obs", name: "Observability", desc: "Logs, metrics, traces, alerting, SLOs.", links: [
+    L("Prometheus Overview", "https://prometheus.io/docs/introduction/overview/"),
+    L("OpenTelemetry Docs", "https://opentelemetry.io/docs/")]},
+ ]},
+];
+
+const KEY = "backend-roadmap-done";
+let done = new Set();
+try { done = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...done])); } catch (e) {} };
+const all = DATA.flatMap(s => s.nodes);
+const $ = id => document.getElementById(id);
+const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+$("map").innerHTML = DATA.map(s => `
+  <section><h2>${esc(s.title)}</h2><div class="nodes">
+  ${s.nodes.map(n => `<button class="node${n.opt ? " opt" : ""}" data-id="${n.id}">
+     <span>${esc(n.name)}${n.opt ? "<small>optional</small>" : ""}</span><span class="tick">✓</span></button>`).join("")}
+  </div></section>`).join("");
+
+function refresh() {
+  document.querySelectorAll(".node").forEach(b => b.classList.toggle("done", done.has(b.dataset.id)));
+  const p = Math.round(done.size / all.length * 100);
+  $("fill").style.width = p + "%";
+  $("count").textContent = `${done.size} / ${all.length} completed (${p}%)`;
+}
+
+function open(id) {
+  const n = all.find(x => x.id === id);
+  $("panel").innerHTML = `
+    <button class="close" aria-label="Close">×</button>
+    <h3>${esc(n.name)}</h3><p>${esc(n.desc)}</p>
+    <ul>${n.links.map(l => `<li><a href="${l.u}" target="_blank" rel="noopener">${esc(l.t)} ↗${l.d ? `<span>${esc(l.d)}</span>` : ""}</a></li>`).join("")}</ul>
+    <button class="mark${done.has(id) ? " on" : ""}" data-id="${id}">${done.has(id) ? "✓ Completed" : "Mark as completed"}</button>`;
+  $("panel").classList.add("open");
+}
+
+document.addEventListener("click", e => {
+  const node = e.target.closest(".node");
+  if (node) return open(node.dataset.id);
+  const mark = e.target.closest(".mark");
+  if (mark) {
+    const id = mark.dataset.id;
+    done.has(id) ? done.delete(id) : done.add(id);
+    save(); refresh(); return open(id);
+  }
+  if (e.target.closest(".close") || !e.target.closest("aside")) $("panel").classList.remove("open");
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("panel").classList.remove("open"); });
+refresh();
+</script>
+</body>
+</html>
