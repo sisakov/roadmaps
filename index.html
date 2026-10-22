@@ -60,6 +60,17 @@
   .meta .completebtn:hover:not(:disabled) { background: var(--done); color: #fff; }
   .meta button:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); color: var(--muted); }
   section.full h2 { background: var(--done); }
+  aside h4 { margin: 0 0 8px; font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .lvlnote { text-align: center; color: var(--muted); margin: -6px 0 16px; position: relative; z-index: 1; }
+  .levels { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+  .lvl { position: relative; z-index: 1; width: min(420px, 100%); display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+    background: var(--surface); border: 2px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  .lvl.ok { border-color: var(--done); }
+  .lvl .emoji { font-size: 1.8rem; }
+  .lvl small { display: block; color: var(--muted); font-size: .8rem; }
+  .lvl button { margin-left: auto; font: inherit; font-weight: 600; padding: 6px 14px; border-radius: 99px; cursor: pointer;
+    border: 2px solid var(--accent); background: var(--surface); color: var(--accent); }
+  .lvl button:hover { background: var(--accent); color: #fff; }
   .reveal { opacity: 0; transform: translateY(18px); transition: opacity .5s, transform .5s; }
   .reveal.in { opacity: 1; transform: none; }
 
@@ -217,13 +228,56 @@ const QUIZ = [
    Q("What does CI stand for?", ["Continuous Integration", "Container Installation", "Code Inspection", "Cloud Infrastructure"], "CI automatically builds and tests every change."),
    Q("Which are the three classic pillars of observability?", ["Logs, metrics, traces", "CPU, RAM, disk", "Build, test, deploy", "Unit, integration, e2e"], "Together they let you answer 'what is the system doing and why?'") ],
 ];
-const PASS = 2;
+const EXTRA = [
+ [ Q("What does DNS do?", ["Translates domain names to IP addresses", "Encrypts HTTP traffic", "Balances server load", "Stores cookies"], "DNS is the internet's phone book: name → IP."),
+   Q("Which transport protocol guarantees ordered, reliable delivery?", ["TCP", "UDP", "ICMP", "ARP"], "TCP retransmits lost packets and orders them; UDP does not.") ],
+ [ Q("Which problem occurs when a transaction reads another transaction's uncommitted data?", ["Dirty read", "Deadlock", "Cache miss", "Phantom index"], "Higher isolation levels (READ COMMITTED and up) prevent dirty reads."),
+   Q("What is the purpose of a database migration?", ["Version-control schema changes", "Copy data into a cache", "Encrypt backups", "Speed up joins"], "Migrations make schema changes repeatable across environments.") ],
+ [ Q("What does it mean for an HTTP method to be idempotent?", ["Repeating the request has the same effect as doing it once", "It never returns a body", "It is always cached", "It requires authentication"], "PUT and DELETE are idempotent; POST generally is not."),
+   Q("Which header tells the server the format of the request body?", ["Content-Type", "Accept", "Host", "Authorization"], "Accept describes what the client wants back; Content-Type describes what it sends.") ],
+ [ Q("What does a JWT signature protect against?", ["Tampering with the token's contents", "Anyone reading the payload", "Token expiry", "All replay attacks"], "JWT payloads are only base64-encoded, not encrypted; the signature proves integrity."),
+   Q("What does CORS control?", ["Which browser origins may call your API", "Database connections", "Password complexity", "TLS versions"], "CORS is enforced by browsers via response headers like Access-Control-Allow-Origin.") ],
+ [ Q("What is an idempotent consumer?", ["One that can safely process the same message twice", "One that deletes every message", "One that never fails", "One that reads multiple queues"], "At-least-once delivery means duplicates happen, so consumers must tolerate them."),
+   Q("What does horizontal scaling mean?", ["Adding more machines/instances", "Adding CPU to one machine", "Compressing data", "Using a bigger disk"], "Vertical scaling = bigger machine; horizontal = more machines.") ],
+ [ Q("What is the TDD cycle?", ["Red, green, refactor", "Build, ship, pray", "Plan, code, deploy", "Mock, stub, spy"], "Write a failing test, make it pass, then clean up."),
+   Q("Why are flaky tests harmful?", ["They fail randomly and erode trust in the suite", "They run too fast", "They use too little memory", "They are always integration tests"], "Teams start ignoring red builds, hiding real bugs.") ],
+ [ Q("What does a Kubernetes Deployment manage?", ["Desired pod replicas and rollouts", "DNS records", "Docker image builds", "Git branches"], "It reconciles actual state to the declared replica count and image version."),
+   Q("What is Infrastructure as Code?", ["Defining infrastructure in version-controlled files", "Configuring servers by hand", "A monitoring dashboard", "A container registry"], "Tools like Terraform make infrastructure reviewable and reproducible.") ],
+];
+QUIZ.forEach((a, i) => a.push(...EXTRA[i]));
+
+const LEVELS = [
+ { key: "junior", title: "Junior Developer", emoji: "🌱", desc: "Core web, SQL, git and basics.", qs: [
+   Q("Which SQL statement removes rows from a table?", ["DELETE FROM", "REMOVE ROW", "ERASE", "TRUNCATE COLUMN"], "DELETE FROM table WHERE … removes matching rows."),
+   Q("Which HTTP status class indicates a client error?", ["4xx", "2xx", "3xx", "5xx"], "4xx = client mistakes, 5xx = server failures."),
+   Q("What does `git pull` do?", ["Fetches and merges remote changes", "Uploads local commits", "Deletes a branch", "Creates a tag"], "It's `git fetch` followed by a merge (or rebase)."),
+   Q("What is the average-case lookup complexity of a hash map?", ["O(1)", "O(n)", "O(log n)", "O(n²)"], "Hashing gives constant-time average access."),
+   Q("Why must you never commit secrets such as API keys to git?", ["They stay in history and can leak", "Git can't store text", "It slows down cloning", "Secrets expire instantly"], "Rotate any leaked secret and use env vars or a secret manager."),
+   Q("What is a primary key?", ["A column that uniquely identifies each row", "Any indexed column", "The database password", "The first column in a table"], "Primary keys are unique and non-null.") ] },
+ { key: "mid", title: "Mid-level Developer", emoji: "🌿", desc: "Performance, reliability and auth.", qs: [
+   Q("A composite index on (a, b) efficiently supports which query filter?", ["a, or a and b", "b only", "c only", "None; it needs a full scan"], "Composite indexes follow the leftmost-prefix rule."),
+   Q("What prevents double-charging when a client retries a payment request?", ["Idempotency keys", "Longer timeouts", "More servers", "Browser caching"], "The server stores the result per key and returns it on retries."),
+   Q("A list endpoint is slow due to the N+1 pattern. Best fix?", ["Eager loading or a batched query", "Add more RAM", "Increase the pool size", "Disable indexes"], "Fetch related rows in one or two queries instead of one per item."),
+   Q("What is the main role of a DB connection pool?", ["Reuse connections to avoid setup overhead", "Cache query results", "Encrypt connections", "Shard data"], "Opening connections is expensive; pools bound and reuse them."),
+   Q("Why pair short-lived access tokens with refresh tokens?", ["Limits damage if an access token leaks", "Makes login faster", "Removes the need for HTTPS", "SQL requires it"], "A leaked access token expires quickly; refresh tokens can be revoked."),
+   Q("What do multi-stage Docker builds help with?", ["Smaller images without build tools", "Running many apps in one container", "Faster CPUs", "Automatic scaling"], "Compile in one stage, copy only artifacts into a slim runtime stage.") ] },
+ { key: "senior", title: "Senior Developer", emoji: "🌳", desc: "Distributed systems & trade-offs.", qs: [
+   Q("A service depends on a flaky downstream. Which pattern prevents cascading failure?", ["Circuit breaker with timeouts", "Infinite retries", "A bigger thread pool", "Chaining calls synchronously"], "Fail fast, shed load, and recover gradually (half-open state)."),
+   Q("How do you keep a DB write and a message publish consistent without 2PC?", ["Transactional outbox", "Publish first, then write", "Ignore failures", "Two independent cron jobs"], "Write the event to an outbox table in the same transaction, then relay it."),
+   Q("What is the main risk of sharding by user_id?", ["Hot shards and costly cross-shard queries", "Losing ACID on single rows", "No indexes possible", "Backups become impossible"], "Uneven key distribution and cross-shard joins are the classic pains."),
+   Q("What does eventual consistency mean?", ["Replicas converge if no new writes occur", "Reads always see the latest write", "Writes may be lost", "Transactions are serializable"], "Reads may be stale for a while, but state converges."),
+   Q("Which metric trio does the RED method track?", ["Rate, Errors, Duration", "RAM, Entropy, Disk", "Read, Edit, Delete", "Retries, Events, Drops"], "RED is a service-oriented health view (USE is for resources)."),
+   Q("Safest order for dropping a DB column with zero downtime?", ["Stop using it in code, deploy, then drop", "Drop it, then deploy", "Drop during peak traffic", "Rename it and hope"], "Expand/contract migrations keep old and new code compatible.") ] },
+];
+const need = n => Math.ceil(n * 0.6);
 
 const KEY = "backend-roadmap-done", KEYQ = "backend-roadmap-quiz";
-let done = new Set(), passed = new Set();
+const KEYL = "backend-roadmap-levels";
+let done = new Set(), passed = new Set(), levels = new Set();
 try { done = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch (e) {}
 try { passed = new Set(JSON.parse(localStorage.getItem(KEYQ) || "[]")); } catch (e) {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...done])); localStorage.setItem(KEYQ, JSON.stringify([...passed])); } catch (e) {} };
+try { levels = new Set(JSON.parse(localStorage.getItem(KEYL) || "[]")); } catch (e) {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify([...done])); localStorage.setItem(KEYQ, JSON.stringify([...passed])); localStorage.setItem(KEYL, JSON.stringify([...levels])); } catch (e) {} };
 const all = DATA.flatMap(s => s.nodes);
 const $ = id => document.getElementById(id);
 const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -232,13 +286,20 @@ $("map").innerHTML = DATA.map((s, i) => `
   <section class="reveal" data-s="${i}"><h2>${esc(s.title)}</h2><div class="meta"></div><div class="nodes">
   ${s.nodes.map(n => `<button class="node${n.opt ? " opt" : ""}" data-id="${n.id}">
      <span>${esc(n.name)}${n.opt ? "<small>optional</small>" : ""}</span><span class="tick">✓</span></button>`).join("")}
-  </div></section>`).join("");
+  </div></section>`).join("") + `
+  <section class="reveal"><h2>8 · Level Check</h2>
+  <p class="lvlnote">Final exams: how ready are you for a Junior, Mid-level or Senior backend role?</p>
+  <div class="levels"></div></section>`;
 
 function refresh() {
   document.querySelectorAll(".node").forEach(b => b.classList.toggle("done", done.has(b.dataset.id)));
   const p = Math.round(done.size / all.length * 100);
   $("fill").style.width = p + "%";
-  $("count").textContent = `${done.size} / ${all.length} topics · ${passed.size} / ${DATA.length} quizzes passed`;
+  $("count").textContent = `${done.size} / ${all.length} topics · ${passed.size} / ${DATA.length} quizzes passed · ${levels.size} / ${LEVELS.length} levels`;
+  document.querySelector(".levels").innerHTML = LEVELS.map((l, i) => `
+    <div class="lvl ${levels.has(l.key) ? "ok" : ""}"><span class="emoji">${l.emoji}</span>
+      <div><b>${l.title}</b><small>${l.desc} · ${l.qs.length} questions · pass ${need(l.qs.length)}</small></div>
+      <button class="lvlbtn" data-l="${i}">${levels.has(l.key) ? "✓ Retake" : "Start"}</button></div>`).join("");
   DATA.forEach((s, i) => {
     const sec = document.querySelector(`section[data-s="${i}"]`);
     const n = s.nodes.filter(x => done.has(x.id)).length, ok = passed.has(i), full = ok && n === s.nodes.length;
@@ -254,24 +315,26 @@ function refresh() {
 // ---- quiz ----
 const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; };
 let qz = null;
-function startQuiz(s) {
-  qz = { s, i: 0, score: 0, answered: false, qs: QUIZ[s].map(q => ({ ...q, c: q.o[0], o: shuffle(q.o) })) };
+function startQuiz(kind, id) {
+  const src = kind === "s" ? { title: DATA[id].title, qs: QUIZ[id] } : { title: LEVELS[id].title + " level check", qs: LEVELS[id].qs };
+  qz = { kind, id, title: src.title, i: 0, score: 0, answered: false, qs: shuffle(src.qs).map(q => ({ ...q, c: q.o[0], o: shuffle(q.o) })) };
   $("quiz").showModal(); drawQuiz();
 }
 function drawQuiz() {
   const d = $("quiz"), q = qz.qs[qz.i], total = qz.qs.length;
   if (!q) {
-    const ok = qz.score >= PASS;
-    if (ok) { passed.add(qz.s); save(); refresh(); }
-    d.innerHTML = `<button class="qclose" aria-label="Close">×</button><small>${esc(DATA[qz.s].title)}</small>
+    const ok = qz.score >= need(total);
+    if (ok) { (qz.kind === "s" ? passed.add(qz.id) : levels.add(LEVELS[qz.id].key)); save(); refresh(); }
+    const win = qz.kind === "s" ? "🎉 Quiz passed! You can now mark this section as completed." : `🏅 You're ready for the ${LEVELS[qz.id].title} level!`;
+    d.innerHTML = `<button class="qclose" aria-label="Close">×</button><small>${esc(qz.title)}</small>
       <div class="score ${ok ? "pop" : ""}">${qz.score} / ${total}</div>
-      <p>${ok ? "🎉 Quiz passed! You can now mark this section as completed." : `You need at least ${PASS} correct answers. Review the links in the topics and try again.`}</p>
+      <p>${ok ? win : `You need at least ${need(total)} correct answers. Review the topics and videos, then try again.`}</p>
       ${ok ? "" : `<button class="qbtn retry">Try again</button>`}<button class="qbtn qclose2">Close</button>`;
     return;
   }
   qz.answered = false;
   d.innerHTML = `<button class="qclose" aria-label="Close">×</button>
-    <small>${esc(DATA[qz.s].title)} · Question ${qz.i + 1} / ${total}</small><h3>${esc(q.q)}</h3>
+    <small>${esc(qz.title)} · Question ${qz.i + 1} / ${total}</small><h3>${esc(q.q)}</h3>
     <div class="opts">${q.o.map(o => `<button class="opt-btn" data-v="${esc(o)}">${esc(o)}</button>`).join("")}</div>
     <div class="fb"></div>`;
 }
@@ -296,12 +359,20 @@ if ("IntersectionObserver" in window) {
   document.querySelectorAll(".reveal").forEach(el => io.observe(el));
 } else document.querySelectorAll(".reveal").forEach(el => el.classList.add("in"));
 
+const linkList = arr => arr.map(l => `<li><a href="${l.u}" target="_blank" rel="noopener">${esc(l.t)} ↗${l.d ? `<span>${esc(l.d)}</span>` : ""}</a></li>`).join("");
+const yt = q => "https://www.youtube.com/results?search_query=" + encodeURIComponent(q);
+const ytLinks = n => [
+  L(`${n.name} — tutorial for beginners`, yt(`${n.name} tutorial for beginners backend`), "YouTube search"),
+  L(`${n.name} — crash course`, yt(`${n.name} crash course`), "YouTube search"),
+  L(`${n.name} — explained in depth`, yt(`${n.name} explained deep dive`), "YouTube search")];
+
 function open(id) {
   const n = all.find(x => x.id === id);
   $("panel").innerHTML = `
     <button class="close" aria-label="Close">×</button>
     <h3>${esc(n.name)}</h3><p>${esc(n.desc)}</p>
-    <ul>${n.links.map(l => `<li><a href="${l.u}" target="_blank" rel="noopener">${esc(l.t)} ↗${l.d ? `<span>${esc(l.d)}</span>` : ""}</a></li>`).join("")}</ul>
+    <h4>📚 Docs & articles</h4><ul>${linkList(n.links)}</ul>
+    <h4>▶ Video tutorials</h4><ul>${linkList(ytLinks(n))}</ul>
     <button class="mark${done.has(id) ? " on" : ""}" data-id="${id}">${done.has(id) ? "✓ Completed" : "Mark as completed"}</button>`;
   $("panel").classList.add("open");
 }
@@ -311,9 +382,11 @@ document.addEventListener("click", e => {
   if (t === $("quiz") || t.closest(".qclose, .qclose2")) return $("quiz").close();
   if (t.closest(".opt-btn")) return answer(t.closest(".opt-btn"));
   if (t.closest(".next")) { qz.i++; return drawQuiz(); }
-  if (t.closest(".retry")) return startQuiz(qz.s);
+  if (t.closest(".retry")) return startQuiz(qz.kind, qz.id);
   const qb = t.closest(".quizbtn");
-  if (qb) return startQuiz(+qb.dataset.s);
+  if (qb) return startQuiz("s", +qb.dataset.s);
+  const lb = t.closest(".lvlbtn");
+  if (lb) return startQuiz("l", +lb.dataset.l);
   const cb = t.closest(".completebtn");
   if (cb) {
     const s = +cb.dataset.s, ids = DATA[s].nodes.map(n => n.id), full = ids.every(id => done.has(id));
